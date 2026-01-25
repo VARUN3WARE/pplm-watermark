@@ -52,6 +52,7 @@ watermarked_text = generator.generate(
     prompt="The future of AI is",
     max_length=100,
     step_size=0.5,       # Logit bias strength
+    kl_lambda=0.0,       # No KL constraint
     burst_interval=10,   # Watermark every 10 tokens
     burst_length=15      # For 15 consecutive tokens
 )
@@ -59,21 +60,38 @@ watermarked_text = generator.generate(
 # Detect watermark
 key_manager = WatermarkKey(SECRET_KEY, generator.tokenizer.vocab_size, 768)
 detector = WatermarkDetector(key_manager, generator.tokenizer)
-detected, score, metadata = detector.detect(watermarked_text, generator.model, threshold=2.0)
+detected, score, metadata = detector.detect(
+    watermarked_text,
+    generator.model,
+    token_weight=1.0,
+    semantic_weight=0.0,
+    threshold=2.0
+)
 ```
 
 ## 🧪 Running Tests
 
 ```bash
-# Single sample test
-python test_simple.py
-
-# Multi-sample evaluation
-python test_multi_sample.py
-
-# Full example with quality assessment
-python examples/basic_usage.py
+# Quick inference demo (recommended)
+python inference.py
 ```
+
+### Live Inference Demo
+
+Run `inference.py` for a complete demonstration:
+
+```bash
+python inference.py
+```
+
+This script provides real-time testing of the watermark system:
+
+- Generates watermarked and clean text samples
+- Performs detection on both (validates true positive and no false positive)
+- Computes quality metrics (perplexity analysis)
+- Displays comprehensive results with z-scores and detection status
+
+Perfect for quick validation and demonstrations!
 
 ## 📈 Working Parameters
 

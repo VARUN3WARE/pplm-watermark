@@ -30,3 +30,7 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Generated outputs
+*_output.txt
+.github_ready_checklist.md

@@ -77,12 +77,37 @@ detected, score, metadata = detector.detect(
 ## Running Tests
 
 ```bash
-# Quick inference demo
+# Two-step workflow (recommended for demonstration)
+python watermark_text.py    # Step 1: Generate watermarked text
+python detect_watermark.py  # Step 2: Detect watermark in generated text
+
+# Alternative: All-in-one demo
 python inference.py
 
 # Multi-prompt evaluation
 python test_multiple_prompts.py
 ```
+
+### Two-Step Workflow
+
+The watermarking system operates in two independent phases:
+
+**Step 1: Generate Watermarked Text**
+```bash
+python watermark_text.py
+```
+- Generates watermarked text using the secret key
+- Saves output to `watermarked_output.txt`
+- Also generates clean text for comparison in `clean_output.txt`
+
+**Step 2: Detect Watermark**
+```bash
+python detect_watermark.py
+```
+- Reads text files and checks for watermark presence
+- Uses the same secret key to verify watermark
+- Shows detection statistics (z-score, green token ratio)
+- Compares watermarked vs clean text
 
 ## Working Parameters
 
@@ -105,8 +130,24 @@ python test_multiple_prompts.py
 - 70/30 token ratio: Aligned with natural distribution (failed)
 - Direct bias (0.5) + 50/50 split: Success
 
+## Project Files
+
+- **watermark_text.py** - Generate watermarked text (Step 1)
+- **detect_watermark.py** - Detect watermarks in text (Step 2)
+- **inference.py** - All-in-one demonstration script
+- **test_multiple_prompts.py** - Multi-prompt evaluation suite
+- **TECHNICAL_REPORT.md** - Complete research documentation
+
 ## References
 
 - Dathathri, S., et al. (2019). "Plug and Play Language Models: A Simple Approach to Controlled Text Generation." ICLR 2020.
 - Kirchenbauer, J., et al. (2023). "A Watermark for Large Language Models." ICML 2023.
 - Radford, A., et al. (2019). "Language Models are Unsupervised Multitask Learners." OpenAI.
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+**Status**: Research Implementation Complete | **Updated**: January 2026

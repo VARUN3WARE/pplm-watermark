@@ -3,11 +3,14 @@ Watermark signal implementations.
 
 This module implements different watermark signals that can be used
 to steer text generation via PPLM.
+
+v2: Adds ContextDependentBiasSignal where the bias vector changes
+based on the previous token, providing much stronger detection signal.
 """
 
 import torch
 import torch.nn as nn
-from typing import Set
+from typing import Set, Optional
 
 
 class SubtleTokenBiasSignal:
@@ -15,6 +18,7 @@ class SubtleTokenBiasSignal:
     Creates gentle bias toward green tokens for imperceptible watermark.
     
     SIMPLIFIED: Direct logit bias instead of gradient-based.
+    Uses FIXED green token partition (v1 compatibility).
     """
 
     def __init__(self, green_tokens: Set[int], target_ratio: float = 0.52, vocab_size: int = 50257):
@@ -48,11 +52,10 @@ class SubtleTokenBiasSignal:
         if self.green_mask is None or len(self.green_mask) != vocab_size:
             mask = torch.zeros(vocab_size, device=device)
             for token_id in self.green_tokens:
-                # Critical: bounds checking!
                 if 0 <= token_id < vocab_size:
                     mask[token_id] = 1.0
             self.green_mask = mask
-        return self.green_mask.to(device)  # Ensure on correct device
+        return self.green_mask.to(device)
 
     def compute_score(self, logits: torch.Tensor) -> torch.Tensor:
         """
@@ -80,6 +83,75 @@ class SubtleTokenBiasSignal:
             Bias vector of same shape as logits
         """
         return self.bias_vector.to(logits.device)
+
+
+class ContextDependentBiasSignal:
+    """
+    Context-dependent watermark signal (v2).
+    
+    The bias vector changes based on the previous token, following
+    Kirchenbauer et al. (2023). This makes the watermark signal much
+    stronger for detection because consecutive green tokens in natural
+    text become exponentially unlikely.
+    """
+
+    def __init__(self, key_manager, vocab_size: int = 50257):
+        """
+        Initialize context-dependent bias signal.
+
+        Args:
+            key_manager: WatermarkKey instance for green token computation
+            vocab_size: Vocabulary size
+        """
+        self.key_manager = key_manager
+        self.vocab_size = vocab_size
+        # Cache bias vectors to avoid recomputation
+        self._bias_cache = {}
+
+    def _get_bias_vector(self, prev_token_id: int) -> torch.Tensor:
+        """
+        Compute bias vector conditioned on previous token.
+
+        Args:
+            prev_token_id: Previous token ID
+
+        Returns:
+            Bias vector of shape (vocab_size,)
+        """
+        if prev_token_id in self._bias_cache:
+            return self._bias_cache[prev_token_id]
+
+        green_tokens = self.key_manager.get_green_tokens_context(prev_token_id)
+        
+        bias = torch.zeros(self.vocab_size)
+        green_fraction = len(green_tokens) / self.vocab_size
+        
+        for token_id in range(self.vocab_size):
+            if token_id in green_tokens:
+                bias[token_id] = 1.0
+            else:
+                bias[token_id] = -green_fraction / (1 - green_fraction)
+
+        self._bias_cache[prev_token_id] = bias
+        return bias
+
+    def compute_gradient(self, logits: torch.Tensor, prev_token_id: int = 0) -> torch.Tensor:
+        """
+        Return context-dependent bias vector.
+
+        Args:
+            logits: Token logits (for device info)
+            prev_token_id: Previous token ID for context
+
+        Returns:
+            Bias vector of same shape as logits
+        """
+        bias = self._get_bias_vector(prev_token_id)
+        return bias.to(logits.device)
+
+    def clear_cache(self):
+        """Clear cached bias vectors."""
+        self._bias_cache = {}
 
 
 class SemanticDirectionSignal:

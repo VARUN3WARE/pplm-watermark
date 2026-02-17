@@ -33,4 +33,5 @@ Thumbs.db
 
 # Generated outputs
 *_output.txt
+outputs/
 .github_ready_checklist.md

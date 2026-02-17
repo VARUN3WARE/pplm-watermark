@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Watermark Text Generator
+Watermark Text Generator (v2)
 
-Generates watermarked text and saves it to a file.
-This demonstrates the text generation phase of the watermarking system.
+Generates watermarked text using context-dependent green lists
+and saves it to a file.
 
 Usage:
     python watermark_text.py
@@ -13,7 +13,7 @@ Output:
     - clean_output.txt: Clean text for comparison
 
 Author: Research Project
-Date: January 2026
+Date: February 2026
 """
 
 import torch
@@ -21,7 +21,7 @@ from src.models.pplm import WatermarkGenerator
 
 def main():
     print("=" * 70)
-    print("  WATERMARK TEXT GENERATOR")
+    print("  WATERMARK TEXT GENERATOR (v2 - Context-Dependent)")
     print("=" * 70)
     
     # Configuration
@@ -34,12 +34,14 @@ def main():
     print(f"  Prompt: '{PROMPT}'")
     print(f"  Max Length: {MAX_LENGTH} tokens")
     print(f"  Model: GPT-2")
+    print(f"  Mode: Context-dependent green lists (v2)")
     
-    # Initialize generator
+    # Initialize generator with context-dependent mode
     print("\nInitializing watermark generator...")
     generator = WatermarkGenerator(
         model_name="gpt2",
-        secret_key=SECRET_KEY
+        secret_key=SECRET_KEY,
+        context_dependent=True
     )
     print(f"  Device: {generator.device}")
     

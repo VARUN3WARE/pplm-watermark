@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 """
-PPLM-Based Text Watermarking: Live Inference Demo
+PPLM-Based Text Watermarking: Live Inference Demo (v2)
 
-This script demonstrates the complete watermarking pipeline:
-- Generates watermarked text using direct logit bias
+This script demonstrates the complete watermarking pipeline with
+context-dependent green lists:
+- Generates watermarked text using context-dependent bias
 - Generates clean baseline text for comparison
 - Performs statistical detection using z-score analysis
 - Evaluates quality impact via perplexity metrics
+- Generates green token heatmap visualization
 
 Usage:
     python inference.py
 
 Author: Research Project
-Date: January 2026
+Date: February 2026
 """
 
 import torch
@@ -20,6 +22,7 @@ from src.models.pplm import WatermarkGenerator
 from src.utils.key_generation import WatermarkKey
 from src.watermark.detector import WatermarkDetector
 from src.evaluation.quality import QualityEvaluator
+from src.evaluation.visualize import plot_green_token_heatmap, plot_score_distribution
 
 def print_separator(title=""):
     print("\n" + "="*70)
@@ -28,7 +31,7 @@ def print_separator(title=""):
         print("="*70)
 
 def main():
-    print_separator("PPLM WATERMARK SYSTEM - LIVE DEMO")
+    print_separator("PPLM WATERMARK SYSTEM - v2 DEMO")
     
     # Configuration
     SECRET_KEY = "demo-secret-key-2026"
@@ -40,18 +43,20 @@ def main():
     print(f"   Prompt: '{PROMPT}'")
     print(f"   Max Length: {MAX_LENGTH} tokens")
     print(f"   Model: GPT-2 (124M)")
+    print(f"   Mode: Context-dependent green lists (v2)")
     
-    # Initialize generator
+    # Initialize generator with context-dependent mode
     print("\nInitializing watermark generator...")
     generator = WatermarkGenerator(
         model_name="gpt2",
-        secret_key=SECRET_KEY
+        secret_key=SECRET_KEY,
+        context_dependent=True
     )
     print(f"   Device: {generator.device}")
     
     # Initialize detector
     key_manager = WatermarkKey(SECRET_KEY, generator.tokenizer.vocab_size, 768)
-    detector = WatermarkDetector(key_manager, generator.tokenizer)
+    detector = WatermarkDetector(key_manager, generator.tokenizer, context_dependent=True)
     
     # Initialize quality evaluator
     evaluator = QualityEvaluator(model_name="gpt2")
@@ -59,7 +64,7 @@ def main():
     # Generate watermarked text
     print_separator("GENERATING WATERMARKED TEXT")
     print("\nGenerating...")
-    print(f"   Parameters: step_size=0.5, burst_interval=10, burst_length=15, kl_lambda=0.0")
+    print(f"   Parameters: step_size=0.5, burst_interval=10, burst_length=15")
     
     watermarked_text = generator.generate(
         prompt=PROMPT,
@@ -90,19 +95,17 @@ def main():
     
     detected_wm, score_wm, metadata_wm = detector.detect(
         watermarked_text,
-        generator.model,
-        token_weight=1.0,
-        semantic_weight=0.0,
         threshold=2.0
     )
     
-    green_ratio_wm = metadata_wm['token']['green_ratio']
-    z_score_wm = metadata_wm['token']['z_score']
+    token_meta_wm = metadata_wm['token']
+    green_ratio_wm = token_meta_wm['green_ratio']
+    z_score_wm = token_meta_wm['z_score']
     
     print(f"\nResults:")
+    print(f"   Mode: {token_meta_wm.get('mode', 'unknown')}")
     print(f"   Green Token Ratio: {green_ratio_wm*100:.1f}%")
     print(f"   Z-score: {z_score_wm:.2f}")
-    print(f"   Combined Score: {score_wm:.2f}")
     print(f"   Threshold: 2.0")
     print(f"   Detection: {'WATERMARK DETECTED' if detected_wm else 'NOT DETECTED'}")
     
@@ -111,14 +114,12 @@ def main():
     
     detected_clean, score_clean, metadata_clean = detector.detect(
         clean_text,
-        generator.model,
-        token_weight=1.0,
-        semantic_weight=0.0,
         threshold=2.0
     )
     
-    green_ratio_clean = metadata_clean['token']['green_ratio']
-    z_score_clean = metadata_clean['token']['z_score']
+    token_meta_clean = metadata_clean['token']
+    green_ratio_clean = token_meta_clean['green_ratio']
+    z_score_clean = token_meta_clean['z_score']
     
     print(f"\nResults:")
     print(f"   Green Token Ratio: {green_ratio_clean*100:.1f}%")
@@ -138,6 +139,29 @@ def main():
     print(f"   Clean Text: {ppl_clean:.2f}")
     print(f"   Watermarked Text: {ppl_wm:.2f}")
     print(f"   Increase: {increase:.1f}%")
+    
+    # Generate visualizations
+    print_separator("GENERATING VISUALIZATIONS")
+    
+    # Green token heatmap (if context-dependent metadata available)
+    if 'per_token_green' in token_meta_wm:
+        tokens = generator.tokenizer.encode(watermarked_text)
+        plot_green_token_heatmap(
+            tokens=tokens,
+            per_token_green=token_meta_wm['per_token_green'],
+            tokenizer=generator.tokenizer,
+            title="Watermarked Text: Green Token Heatmap",
+            filename="demo_heatmap.png"
+        )
+    
+    # Score distribution (single sample visualization)
+    plot_score_distribution(
+        watermarked_scores=[z_score_wm],
+        clean_scores=[z_score_clean],
+        threshold=2.0,
+        title="Demo Detection Scores",
+        filename="demo_scores.png"
+    )
     
     # Summary
     print_separator("SUMMARY")

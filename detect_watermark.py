@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
-Watermark Detector
+Watermark Detector (v2)
 
-Detects watermarks in text files.
-This demonstrates the detection phase of the watermarking system.
+Detects watermarks in text files using context-dependent analysis.
 
 Usage:
     python detect_watermark.py
@@ -13,7 +12,7 @@ Input:
     - clean_output.txt: Clean text for comparison
 
 Author: Research Project
-Date: January 2026
+Date: February 2026
 """
 
 import torch
@@ -40,16 +39,16 @@ def detect_text(filename, detector, model, evaluator=None):
     # Detect watermark
     detected, score, metadata = detector.detect(
         text,
-        model,
-        token_weight=1.0,
-        semantic_weight=0.0,
         threshold=2.0
     )
     
-    green_ratio = metadata['token']['green_ratio']
-    z_score = metadata['token']['z_score']
+    token_meta = metadata['token']
+    green_ratio = token_meta['green_ratio']
+    z_score = token_meta['z_score']
+    mode = token_meta.get('mode', 'unknown')
     
     print(f"\nDetection Results:")
+    print(f"  Mode: {mode}")
     print(f"  Green Token Ratio: {green_ratio*100:.1f}%")
     print(f"  Z-score: {z_score:.2f}")
     print(f"  Threshold: 2.0")
@@ -80,12 +79,13 @@ def main():
     
     # Initialize system
     print("\nInitializing detection system...")
-    generator = WatermarkGenerator(model_name="gpt2", secret_key=SECRET_KEY)
+    generator = WatermarkGenerator(model_name="gpt2", secret_key=SECRET_KEY, context_dependent=True)
     key_manager = WatermarkKey(SECRET_KEY, generator.tokenizer.vocab_size, 768)
-    detector = WatermarkDetector(key_manager, generator.tokenizer)
+    detector = WatermarkDetector(key_manager, generator.tokenizer, context_dependent=True)
     evaluator = QualityEvaluator(model_name="gpt2")
     
     print(f"  Device: {generator.device}")
+    print(f"  Mode: Context-dependent (v2)")
     
     # Detect watermark in files
     print("\n" + "=" * 70)
